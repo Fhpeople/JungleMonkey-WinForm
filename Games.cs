@@ -2,19 +2,24 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using Timer = System.Windows.Forms.Timer;
 
 namespace JungleMonkey
 {
     public class Games : Form
     {
-        private System.Windows.Forms.Timer timer;
-        private PictureBox Monkey;
-        private Image BgGames;
-        private List<PictureBox> tileset = new List<PictureBox>();
-        private Image Tiles;
-        private Image monkey;
-        private int score = 0;
+        private Timer timer;
+        private Image bgImage, tileImage, monkeyImage, bananaImage, obstacleImage;
+        private GroundManager groundManager;
+        private ICharacter monkey;
         private Label labelScore;
+
+        private List<IGameObject> obstacles = new List<IGameObject>();
+        private List<IGameObject> bananas = new List<IGameObject>();
+        private Random rand = new Random();
+        private int score = 0;
+        private int cooldownObstacle = 0;
+        private int cooldownBanana = 0;
 
         public Games()
         {
@@ -23,235 +28,115 @@ namespace JungleMonkey
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
 
-            BgGames = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Tileset\\Previewx3.png");
-            this.BackgroundImage = BgGames;
+            bgImage = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Tileset\\Previewx3.png");
+            tileImage = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Tileset\\tiles.png");
+            monkeyImage = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Monkey\\Run\\Layer 1_sprite_3(2).png");
+            bananaImage = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Collection\\l0_sprite_07.png");
+            obstacleImage = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Collection\\Spike.png");
+
+            this.BackgroundImage = bgImage;
             this.BackgroundImageLayout = ImageLayout.Stretch;
 
-            Tiles = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Tileset\\tiles.png");
-            monkey = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Monkey\\Run\\Layer 1_sprite_3(2).png");
-            AddTileset();
-            InitGround();
-            AddMonkey();
+            groundManager = new GroundManager(tileImage, this);
+            int groundTop = groundManager.GroundTop;
 
-            score = 0;
-            labelScore = new Label();
-            labelScore.Text = "Score: 0";
-            labelScore.Font = new Font("Times New Roman", 20, FontStyle.Bold);
-            labelScore.ForeColor = Color.White;
-            labelScore.BackColor = Color.Transparent;
-            labelScore.AutoSize = true;
-            labelScore.Location = new Point(10, 10);
+            monkey = new Monkey(monkeyImage, groundTop);
+            this.Controls.Add(monkey.Sprite);
+
+            labelScore = new Label
+            {
+                Text = "Score: 0",
+                Font = new Font("Times New Roman", 20, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,
+                AutoSize = true,
+                Location = new Point(10, 10)
+            };
             this.Controls.Add(labelScore);
             labelScore.BringToFront();
 
-            timer = new System.Windows.Forms.Timer();
+            timer = new Timer();
             timer.Interval = 20;
             timer.Tick += GameLoop;
             timer.Start();
         }
 
-        private void AddTileset()
-        {
-            int tilesWidth = 65;
-            int tilesNeeded = (this.ClientSize.Width / tilesWidth) + 2;
-
-            for (int i = 0; i < tilesNeeded; i++)
-            {
-                PictureBox Tile = new PictureBox();
-                Tile.Image = Tiles;
-                Tile.Size = new Size(tilesWidth, 62);
-                Tile.SizeMode = PictureBoxSizeMode.StretchImage;
-                Tile.Left = i * 65;
-                Tile.Top = this.ClientSize.Height - Tile.Height;
-                Tile.BackColor = Color.Transparent;
-                this.Controls.Add(Tile);
-                tileset.Add(Tile);
-            }
-        }
-
-        private void AddMonkey()
-        {
-            Monkey = new PictureBox();
-            Monkey.Image = monkey;
-            Monkey.Size = new Size(35, 48);
-            Monkey.SizeMode = PictureBoxSizeMode.StretchImage;
-            Monkey.Left = 100;
-            Monkey.Top = tileset[0].Top - Monkey.Height + 1;
-            Monkey.BackColor = Color.Transparent;
-            this.Controls.Add(Monkey);
-        }
-
-        List<PictureBox> Ground = new List<PictureBox>();
-        int tileSpeed = 10;
-
-        private void InitGround()
-        {
-            int tileWidth = 62;
-            int tileHeight = 65;
-
-            for (int i = 0; i < 10; i++)
-            {
-                PictureBox Tiles = new PictureBox();
-                Tiles.Image = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Tileset\\tiles.png");
-                Tiles.Size = new Size(tileWidth, tileHeight);
-                Tiles.SizeMode = PictureBoxSizeMode.StretchImage;
-                Tiles.Location = new Point(i * tileWidth, this.ClientSize.Height - tileHeight);
-                Tiles.BackColor = Color.Transparent;
-
-                Ground.Add(Tiles);
-                this.Controls.Add(Tiles);
-                Tiles.BringToFront();
-            }
-        }
-
-        List<PictureBox> obstacles = new List<PictureBox>();
-        Random rand = new Random();
-
-        private void CreateObstacle()
-        {
-            PictureBox obstacle = new PictureBox ();
-            obstacle.Size = new Size(20, 25);
-            obstacle.BackColor = Color.Transparent;
-            obstacle.Image = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Collection\\Spike.png");
-            obstacle.SizeMode = PictureBoxSizeMode.StretchImage;
-            obstacle.Top = tileset[0].Top - obstacle.Height + 5;
-            obstacle.Left = this.ClientSize.Width + rand.Next(100, 300);
-
-            this.Controls.Add(obstacle);
-            obstacles.Add(obstacle);
-        }
-
-        List<PictureBox> Banana = new List<PictureBox>();
-
-        private void CreateBanana()
-        {
-            PictureBox banana = new PictureBox();
-            banana.Image = Image.FromFile("C:\\JungleMonkey\\AssetsJungleMonkey\\Collection\\l0_sprite_07.png");
-            banana.Size = new Size(18, 28);
-            banana.SizeMode = PictureBoxSizeMode.StretchImage;
-            banana.BackColor = Color.Transparent;
-            banana.Left = this.ClientSize.Width + rand.Next(100, 300);
-            banana.Top = tileset[0].Top - banana.Height - rand.Next(20, 80);
-
-            this.Controls.Add(banana);
-            Banana.Add(banana);
-            banana.BringToFront();
-        }
-
-        bool isJump = false;
-        bool isOnGround = true;
-        int jumpSpeed = 0;
-        int force = 20;
-        int gravity = 2;
-        int coolDown1 = 0;
-        int coolDown2 = 0;
-
         private void GameLoop(object sender, EventArgs e)
         {
-            MoveGround();
-            HandleJumping();
+            groundManager.MoveGround();
+            monkey.ApplyGravity();
 
-            coolDown1--;
-            if (coolDown1 <= 0)
+            cooldownObstacle--;
+            if (cooldownObstacle <= 0)
             {
-                CreateObstacle();
-                coolDown1 = rand.Next(40, 80);
+                var obs = new Obstacle(obstacleImage, groundManager.GroundTop, this.ClientSize.Width);
+                this.Controls.Add(obs.Sprite);
+                obstacles.Add(obs);
+                cooldownObstacle = rand.Next(40, 80);
             }
 
-            coolDown2--;
-            if (coolDown2 <= 0)
+            cooldownBanana--;
+            if (cooldownBanana <= 0)
             {
-                CreateBanana();
-                coolDown2 = rand.Next(60, 80);
+                var bana = new Banana(bananaImage, groundManager.GroundTop, this.ClientSize.Width);
+                this.Controls.Add(bana.Sprite);
+                bana.Sprite.BringToFront();
+                bananas.Add(bana);
+                cooldownBanana = rand.Next(60, 80);
             }
 
             for (int i = obstacles.Count - 1; i >= 0; i--)
             {
-                obstacles[i].Left -= 5;
+                obstacles[i].Move();
+                var sprite = ((Obstacle)obstacles[i]).Sprite;
 
-                if (obstacles[i].Right < 0)
+                if (sprite.Right < 0)
                 {
-                    this.Controls.Remove(obstacles[i]);
+                    this.Controls.Remove(sprite);
                     obstacles.RemoveAt(i);
                 }
-                else if (Monkey.Bounds.IntersectsWith(obstacles[i].Bounds))
+                else if (obstacles[i].CheckCollision(monkey.Sprite))
                 {
                     GameOver();
+                    return;
                 }
             }
 
-            for (int i = Banana.Count - 1; i >= 0; i--)
+            for (int i = bananas.Count - 1; i >= 0; i--)
             {
-                Banana[i].Left -= 5;
+                bananas[i].Move();
+                var sprite = ((Banana)bananas[i]).Sprite;
 
-                if (Banana[i].Right < 0)
+                if (sprite.Right < 0)
                 {
-                    this.Controls.Remove(Banana[i]);
-                    Banana.RemoveAt(i);
+                    this.Controls.Remove(sprite);
+                    bananas.RemoveAt(i);
                 }
-                else if (Monkey.Bounds.IntersectsWith(Banana[i].Bounds))
+                else if (bananas[i].CheckCollision(monkey.Sprite))
                 {
-                    score += 1;
+                    score++;
                     labelScore.Text = "Score: " + score.ToString();
-
-                    this.Controls.Remove(Banana[i]);
-                    Banana.RemoveAt(i);
+                    this.Controls.Remove(sprite);
+                    bananas.RemoveAt(i);
                 }
-            }
-        }
-
-        private void MoveGround()
-        {
-            foreach (PictureBox Tiles in Ground)
-            {
-                Tiles.Left -= tileSpeed;
-
-                if (Tiles.Right < 0)
-                {
-                    int maxRight = Ground.Max(t => t.Right);
-                    Tiles.Left = maxRight;
-                }
-            }
-        }
-
-        private void HandleJumping()
-        {
-            if (isJump)
-            {
-                Monkey.Top -= jumpSpeed;
-                jumpSpeed -= gravity;
-
-                if (jumpSpeed <= -force)
-                {
-                    isJump = false;
-                    isOnGround = true;
-                    jumpSpeed = 0;
-                }
-            }
-            else
-            {
-                Monkey.Top = tileset[0].Top - Monkey.Height + 1;
             }
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if (keyData == Keys.Space && isOnGround)
+            if (keyData == Keys.Space && monkey.IsOnGround)
             {
-                isJump = true;
-                isOnGround = false;
-                jumpSpeed = force;
+                monkey.Jump();
                 return true;
             }
-
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
         private void GameOver()
         {
             timer.Stop();
-            GameOver Over = new GameOver(score);
-            Over.Show();
+            GameOver over = new GameOver(score);
+            over.Show();
             this.Hide();
         }
     }
